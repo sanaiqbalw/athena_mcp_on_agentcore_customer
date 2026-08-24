@@ -1,0 +1,337 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - IAM roles. Two tier roles with identical data-access policies
+  (Lake Formation is the only thing that filters columns), the AgentCore Runtime
+  execution role, and the AgentCore Gateway role. Every resource name is a parameter
+  so the same stack can be deployed more than once in one account.
+
+Parameters:
+  DataBucketName:
+    Type: String
+  GlueDatabaseName:
+    Type: String
+  AnalyticsRoleName:
+    Type: String
+  BusinessRoleName:
+    Type: String
+  RuntimeExecRoleName:
+    Type: String
+  GatewayRoleName:
+    Type: String
+  TierDataPolicyName:
+    Type: String
+    Description: Managed policy shared by both tier roles
+  InterceptorFunctionName:
+    Type: String
+    Description: >
+      Name of the interceptor Lambda in the interceptor stack. The gateway role needs
+      lambda:InvokeFunction on it and this stack is created before the interceptor
+      exists, so it is passed as a name rather than resolved from a cross-stack export.
+  VerificationPrincipalArn:
+    Type: String
+    Default: ""
+    Description: Principal allowed to assume the tier roles for verify_permissions.py
+  ExternalClientSecretName:
+    Type: String
+    Description: >
+      Secrets Manager secret holding the IdP service app's client secret, for a
+      credential provider declared with ClientSecretSource EXTERNAL. A name rather
+      than an ARN because Secrets Manager appends a random suffix, so the policy
+      needs a trailing wildcard.
+  AnalyticsModelIds:
+    Type: CommaDelimitedList
+    Default: "anthropic.claude-sonnet-4-20250514-v1:0,anthropic.claude-3-5-haiku-20241022-v1:0"
+  BusinessModelIds:
+    Type: CommaDelimitedList
+    Default: "anthropic.claude-3-5-haiku-20241022-v1:0"
+
+Conditions:
+  HasVerificationPrincipal: !Not [!Equals [!Ref VerificationPrincipalArn, ""]]
+
+Resources:
+  # --- shared data-access policy, attached to both tier roles -------------------
+  # No column names here. Lake Formation is the only thing that filters columns.
+  TierDataPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Ref TierDataPolicyName
+      Description: Athena + Glue read access shared by every identity tier
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AthenaQuery
+            Effect: Allow
+            Action:
+              - athena:StartQueryExecution
+              - athena:StopQueryExecution
+              - athena:GetQueryExecution
+              - athena:GetQueryResults
+              - athena:GetQueryResultsStream
+              - athena:GetWorkGroup
+              - athena:ListWorkGroups
+              - athena:GetDataCatalog
+              - athena:ListDataCatalogs
+              - athena:ListDatabases
+              - athena:GetDatabase
+              - athena:ListTableMetadata
+              - athena:GetTableMetadata
+            Resource: "*"
+          - Sid: GlueCatalogRead
+            Effect: Allow
+            Action:
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetTables
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:SearchTables
+            Resource:
+              - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+              - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseName}"
+              - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseName}/*"
+          # Underlying S3 data is reached through Lake Formation credential vending,
+          # not through a direct S3 grant. That is what makes LF the real enforcer.
+          - Sid: LakeFormationDataAccess
+            Effect: Allow
+            Action:
+              - lakeformation:GetDataAccess
+              - lakeformation:GetResourceLFTags
+              - lakeformation:ListPermissions
+            Resource: "*"
+          - Sid: AthenaResultsOnly
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:AbortMultipartUpload
+            Resource: !Sub "arn:${AWS::Partition}:s3:::${DataBucketName}/athena-results/*"
+          - Sid: AthenaResultsBucket
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetBucketLocation
+            Resource: !Sub "arn:${AWS::Partition}:s3:::${DataBucketName}"
+
+  # --- tier roles ---------------------------------------------------------------
+  AnalyticsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref AnalyticsRoleName
+      Description: Analytics tier - Lake Formation grants all columns
+      ManagedPolicyArns:
+        - !Ref TierDataPolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RuntimeExecutionRole
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt RuntimeExecRole.Arn
+            Action: sts:AssumeRole
+          - !If
+            - HasVerificationPrincipal
+            - Sid: VerificationPrincipal
+              Effect: Allow
+              Principal:
+                AWS: !Ref VerificationPrincipalArn
+              Action: sts:AssumeRole
+            - !Ref AWS::NoValue
+      Policies:
+        - PolicyName: ModelAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AnalyticsModelAccess
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${M}"
+                    - M: !Select [0, !Ref AnalyticsModelIds]
+                  - !Sub
+                    - "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${M}"
+                    - M: !Select [1, !Ref AnalyticsModelIds]
+
+  BusinessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref BusinessRoleName
+      Description: Business tier - Lake Formation withholds the sensitive columns
+      ManagedPolicyArns:
+        - !Ref TierDataPolicy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RuntimeExecutionRole
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt RuntimeExecRole.Arn
+            Action: sts:AssumeRole
+          - !If
+            - HasVerificationPrincipal
+            - Sid: VerificationPrincipal
+              Effect: Allow
+              Principal:
+                AWS: !Ref VerificationPrincipalArn
+              Action: sts:AssumeRole
+            - !Ref AWS::NoValue
+      Policies:
+        - PolicyName: ModelAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Deliberately narrower than analytics: the cheaper model only.
+              - Sid: BusinessModelAccess
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub
+                    - "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${M}"
+                    - M: !Select [0, !Ref BusinessModelIds]
+
+  # --- AgentCore runtime execution role ----------------------------------------
+  RuntimeExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RuntimeExecRoleName
+      Description: Execution role for the AgentCore Runtime hosting the MCP server
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:*"
+      Policies:
+        - PolicyName: RuntimeExec
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # The whole point: step down into the caller's tier role per request.
+              # Constructed ARNs, not !GetAtt: the tier roles trust this role by
+              # !GetAtt, so referencing them back by attribute would be a cycle. A
+              # Resource ARN does not have to exist yet; a trust principal does.
+              - Sid: AssumeTierRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AnalyticsRoleName}"
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${BusinessRoleName}"
+              - Sid: ContainerImagePull
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: "*"
+              - Sid: Telemetry
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                  - cloudwatch:PutMetricData
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: "*"
+              - Sid: WorkloadIdentity
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:GetWorkloadAccessToken
+                  - bedrock-agentcore:GetWorkloadAccessTokenForJWT
+                  - bedrock-agentcore:GetWorkloadAccessTokenForUserId
+                Resource: "*"
+
+  # --- AgentCore gateway role ---------------------------------------------------
+  GatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref GatewayRoleName
+      Description: Role the AgentCore Gateway uses to reach its runtime target
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: GatewayInvoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: InvokeRuntimeTarget
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:InvokeAgentRuntime
+                  - bedrock-agentcore:InvokeAgentRuntimeForUser
+                Resource: !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:runtime/*"
+              # The gateway assumes this role to invoke its request interceptor. Named
+              # by constructed ARN so this stack stays independent of the interceptor
+              # stack; the name is passed in as a parameter to keep them in sync.
+              - Sid: InvokeRequestInterceptor
+                Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${InterceptorFunctionName}"
+              - Sid: GatewayTelemetry
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: "*"
+              # Required for on-behalf-of token exchange. The gateway does not talk to
+              # the IdP itself: it asks AgentCore Identity to broker the RFC 8693
+              # exchange, which needs the token vault, the workload identity the
+              # gateway was issued, and the provider entry. Without these the exchange
+              # fails before the target is ever called, so the request never reaches
+              # the runtime and the failure looks like a broken tool rather than
+              # missing IAM.
+              - Sid: OnBehalfOfTokenExchange
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:GetResourceOauth2Token
+                  - bedrock-agentcore:GetWorkloadAccessToken
+                  - bedrock-agentcore:GetWorkloadAccessTokenForJWT
+                  - bedrock-agentcore:GetWorkloadAccessTokenForUserId
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:token-vault/default"
+                  - !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:token-vault/default/oauth2credentialprovider/*"
+                  - !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:workload-identity-directory/default"
+                  - !Sub "arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:workload-identity-directory/default/workload-identity/*"
+              # AgentCore Identity stores the OAuth client secret here on the
+              # provider's behalf; the "!" in the path is part of the service-managed
+              # secret name. The second ARN covers a provider declared with
+              # ClientSecretSource EXTERNAL, where the secret is customer-owned and
+              # lives under a normal path instead.
+              - Sid: OnBehalfOfClientSecret
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:bedrock-agentcore-identity!default/oauth2/*"
+                  - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${ExternalClientSecretName}*"
+
+Outputs:
+  AnalyticsRoleArn:
+    Value: !GetAtt AnalyticsRole.Arn
+  BusinessRoleArn:
+    Value: !GetAtt BusinessRole.Arn
+  RuntimeExecRoleArn:
+    Value: !GetAtt RuntimeExecRole.Arn
+  GatewayRoleArn:
+    Value: !GetAtt GatewayRole.Arn

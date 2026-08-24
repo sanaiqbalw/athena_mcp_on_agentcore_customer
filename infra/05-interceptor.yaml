@@ -1,0 +1,174 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - request interceptor. A small Lambda in front of the gateway that
+  blocks write and delete tool calls with a JSON-RPC error, so the server is provably
+  read-only at the edge. Reads only the request body; the caller's bearer token is
+  never passed to it.
+
+Parameters:
+  InterceptorRoleName:
+    Type: String
+  InterceptorFunctionName:
+    Type: String
+
+Resources:
+  InterceptorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref InterceptorRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InterceptorPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+
+  InterceptorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref InterceptorFunctionName
+      Description: Blocks write and delete tool calls before they reach the runtime
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt InterceptorRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          """Gateway REQUEST interceptor for the Athena MCP demo.
+
+          One job: block any mutating MCP tools/call - writes and deletes - with a custom
+          JSON-RPC error, so the server is provably read-only at the edge. Reads (get,
+          list, describe, SELECT and so on) fall through untouched.
+
+          For an MCP target the gateway hands us the request body already parsed into a
+          dict, and returning a transformedGatewayResponse short-circuits the call - the
+          gateway replies with it and never touches the runtime.
+          """
+          import json
+          import logging
+          import re
+
+          log = logging.getLogger()
+          log.setLevel(logging.INFO)
+
+          # A tools/call mutates data if its name, its "operation" argument, or its SQL
+          # begins with one of these verbs. Reads fall through and are forwarded.
+          WRITE_VERBS = (
+              "create", "delete", "update", "put", "write", "insert",
+              "remove", "drop", "import", "register", "alter", "truncate",
+              "replace", "merge", "grant", "revoke", "batch-create",
+              "batch-delete", "batch-update", "msck",
+          )
+          SQL_WRITE_KEYWORDS = {
+              "insert", "update", "delete", "drop", "create", "alter",
+              "truncate", "merge", "replace", "grant", "revoke", "msck", "call",
+          }
+          SQL_ARG_KEYS = {"sql", "query_string", "querystring", "query"}
+
+
+          def _first_sql_keyword(text):
+              """First real keyword of a SQL string, ignoring comments and whitespace."""
+              s = re.sub(r"/\*.*?\*/", " ", str(text or ""), flags=re.S)
+              s = " ".join(line.split("--", 1)[0] for line in s.splitlines()).strip()
+              if not s:
+                  return ""
+              return s.split(None, 1)[0].lower().strip("(")
+
+
+          def _write_reason(body):
+              """Return a human reason if this tools/call mutates data, else ''."""
+              if not isinstance(body, dict) or body.get("method") != "tools/call":
+                  return ""
+              params = body.get("params") or {}
+              name = str(params.get("name") or "").lower()
+              args = params.get("arguments")
+
+              # 1. A tool named for a mutation (e.g. anything with delete/create/update).
+              if any(verb in name for verb in WRITE_VERBS):
+                  return "tool '%s' is a write operation" % name
+
+              if isinstance(args, dict):
+                  # 2. An umbrella tool whose "operation" is a write (delete-database, ...).
+                  op = str(args.get("operation") or "").lower()
+                  if op and any(op.startswith(verb) for verb in WRITE_VERBS):
+                      return "operation '%s' is a write operation" % op
+
+                  # 3. A read-shaped tool carrying a write SQL statement.
+                  for key, value in args.items():
+                      if key.lower() in SQL_ARG_KEYS:
+                          kw = _first_sql_keyword(value)
+                          if kw in SQL_WRITE_KEYWORDS:
+                              return "SQL statement is a %s operation" % kw.upper()
+              return ""
+
+
+          def _blocked(body, reason):
+              req_id = body.get("id") if isinstance(body, dict) else None
+              log.info(json.dumps({"action": "blocked", "reason": reason}))
+              return {
+                  "interceptorOutputVersion": "1.0",
+                  "mcp": {
+                      "transformedGatewayResponse": {
+                          "statusCode": 200,
+                          "body": {
+                              "jsonrpc": "2.0",
+                              "id": req_id,
+                              "error": {
+                                  "code": -32000,
+                                  "message": "write and delete not allowed",
+                                  "data": {"reason": reason},
+                              },
+                          },
+                      }
+                  },
+              }
+
+
+          def lambda_handler(event, context):
+              request = event.get("mcp", {}).get("gatewayRequest", {})
+              body = request.get("body")
+
+              reason = _write_reason(body)
+              if reason:
+                  return _blocked(body, reason)
+
+              # Read: forward the body unchanged. The Authorization header is not
+              # passed to this Lambda at all (PassRequestHeaders is false on the
+              # gateway), so there is nothing here to leak.
+              log.info(json.dumps({"action": "pass_through"}))
+              return {
+                  "interceptorOutputVersion": "1.0",
+                  "mcp": {"transformedGatewayRequest": {"body": body}},
+              }
+
+  InterceptorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${InterceptorFunction}"
+      RetentionInDays: 7
+
+  # The Gateway service must be allowed to invoke the interceptor.
+  InterceptorInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt InterceptorFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: bedrock-agentcore.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+Outputs:
+  InterceptorFunctionArn:
+    Value: !GetAtt InterceptorFunction.Arn

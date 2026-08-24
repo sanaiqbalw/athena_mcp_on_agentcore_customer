@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - registers the Okta runtime as a target of the Okta gateway, with
+  on-behalf-of token exchange as the outbound authorization.
+
+  This is the payload of the Okta track. The credential provider below is the entire
+  integration: AgentCore Identity takes the caller's validated token, brokers an RFC 8693
+  exchange with Okta, and forwards the result to the runtime. No exchange code, no token
+  handling and no client secret appear anywhere in this project.
+
+  Separate stack because the target needs the runtime's MCP endpoint, which embeds the
+  runtime's URL-encoded ARN and therefore only exists once stack 09 has created it.
+
+Metadata:
+  cfn-lint:
+    config:
+      # The OboProvider* and Okta* parameters below default to empty on purpose: they are
+      # read only when this stack creates the credential provider, which the CreateProvider
+      # condition guards. cfn-lint checks property patterns without applying conditions, so
+      # it flags those empty defaults as pattern violations that CloudFormation never sees.
+      ignore_checks:
+        - W1030
+
+Parameters:
+  GatewayId:
+    Type: String
+  TargetName:
+    Type: String
+    Default: athena-mcp-okta
+    AllowedPattern: "([0-9a-zA-Z][-]?){1,100}"
+  McpEndpoint:
+    Type: String
+    Description: https URL of the Okta runtime's MCP endpoint
+    AllowedPattern: "^https://.*"
+  # Either point at a provider that already exists, or leave this empty and let the stack
+  # create one. Creating it here is the better default: the target is the provider's only
+  # consumer, and an out-of-band provider is an ordering trap - the target reaches FAILED
+  # if the provider is missing, and nothing in the stack graph says why.
+  OboProviderArn:
+    Type: String
+    Default: ""
+    Description: >
+      Existing AgentCore Identity OAuth2 credential provider with TOKEN_EXCHANGE. Empty
+      means create one from the OboProvider* parameters below.
+  OboProviderName:
+    Type: String
+    Default: ""
+    AllowedPattern: "[a-zA-Z0-9\\-_]*"
+    Description: Name for the provider this stack creates. Required when OboProviderArn is empty.
+  OktaDiscoveryUrl:
+    Type: String
+    Default: ""
+    Description: OIDC discovery URL of the authorization server that performs the exchange.
+  OktaClientId:
+    Type: String
+    Default: ""
+    Description: >
+      Client id of the SERVICE app, not the login app. The service app is the agent's own
+      identity: it authenticates to the token endpoint to perform the exchange, while the
+      subject token names the human. The login app never appears in any AWS resource.
+  ClientSecretName:
+    Type: String
+    Description: >
+      Secrets Manager secret holding the service app's client secret as JSON. Referenced
+      rather than inlined so the secret never enters a template, a stack parameter or this
+      repository. Must match ExternalClientSecretName in 02-roles.yaml.
+  ClientSecretJsonKey:
+    Type: String
+    Default: client_secret
+    Description: JSON key inside the secret. AgentCore's own managed secrets use client_secret.
+  ActorTokenContent:
+    Type: String
+    Default: NONE
+    AllowedValues: [NONE, M2M, AWS_IAM_ID_TOKEN_JWT]
+    Description: >
+      NONE is deliberate. This authorization server grants the exchange only when no actor
+      token is presented; every M2M variant was denied with 403 access_denied. Changing this
+      is the single most likely way to break the exchange.
+  ExchangeScope:
+    Type: String
+    Default: api
+    Description: >
+      Scope requested during the exchange. Verified against the live authorization
+      server: "api" is granted, and a scopeless request is denied because Okta access
+      policy rules match on the scopes requested.
+  ExchangeAudience:
+    Type: String
+    Description: >
+      Audience requested during the exchange. Mandatory - without it Okta switches to a
+      validation path that demands an actor_token. Equal to the inbound audience here
+      because the exchange happens within a single authorization server; re-scoping to a
+      different downstream audience needs a second AS plus Okta trusted-server config.
+  SubjectTokenType:
+    Type: String
+    Default: "urn:ietf:params:oauth:token-type:access_token"
+    Description: >
+      Must be overridden. AgentCore defaults the subject token type to
+      urn:ietf:params:oauth:token-type:jwt, which this Okta authorization server rejects
+      outright with "'subject_token_type' is invalid or not supported". Measured directly:
+      access_token succeeds, jwt returns 400. Leaving the default in place makes every
+      tool call fail with a generic "Token exchange failed" at the gateway, before the
+      request ever reaches the runtime.
+
+Conditions:
+  CreateProvider: !Equals [!Ref OboProviderArn, ""]
+
+Resources:
+  # The whole OBO integration, declared. CustomOauth2 rather than a named vendor because the
+  # exchange happens against a custom Okta authorization server, which the built-in Okta
+  # vendor config does not model.
+  OboProvider:
+    Type: AWS::BedrockAgentCore::OAuth2CredentialProvider
+    Condition: CreateProvider
+    Properties:
+      Name: !Ref OboProviderName
+      CredentialProviderVendor: CustomOauth2
+      Oauth2ProviderConfigInput:
+        CustomOauth2ProviderConfig:
+          OauthDiscovery:
+            DiscoveryUrl: !Ref OktaDiscoveryUrl
+          ClientId: !Ref OktaClientId
+          # EXTERNAL keeps the secret in a secret the customer owns and rotates. With
+          # MANAGED the literal value would have to travel through a stack parameter.
+          ClientSecretSource: EXTERNAL
+          ClientSecretConfig:
+            SecretId: !Ref ClientSecretName
+            JsonKey: !Ref ClientSecretJsonKey
+          # Okta authenticates this client with HTTP Basic at the token endpoint.
+          ClientAuthenticationMethod: CLIENT_SECRET_BASIC
+          OnBehalfOfTokenExchangeConfig:
+            GrantType: TOKEN_EXCHANGE
+            TokenExchangeGrantTypeConfig:
+              ActorTokenContent: !Ref ActorTokenContent
+
+  OktaGatewayTarget:
+    Type: AWS::BedrockAgentCore::GatewayTarget
+    Properties:
+      Name: !Ref TargetName
+      Description: Okta runtime hosting the Athena MCP server, reached on behalf of the user
+      GatewayIdentifier: !Ref GatewayId
+      TargetConfiguration:
+        Mcp:
+          McpServer:
+            Endpoint: !Ref McpEndpoint
+      # OAUTH + TOKEN_EXCHANGE is what makes this the on-behalf-of topology: the gateway
+      # exchanges the caller's inbound token for a downstream-scoped one that still names
+      # the caller in "sub". An IAM (SigV4) outbound would make every caller look identical
+      # to the runtime and the tier would have to travel as a separate header.
+      #
+      # No actor token is configured on the provider, and that is deliberate rather than an
+      # oversight: this authorization server grants the exchange only when no actor token
+      # is present. Every variant carrying one was denied 403 access_denied.
+      CredentialProviderConfigurations:
+        - CredentialProviderType: OAUTH
+          CredentialProvider:
+            OauthCredentialProvider:
+              ProviderArn: !If
+                - CreateProvider
+                - !GetAtt OboProvider.CredentialProviderArn
+                - !Ref OboProviderArn
+              GrantType: TOKEN_EXCHANGE
+              Scopes:
+                - !Ref ExchangeScope
+              CustomParameters:
+                audience: !Ref ExchangeAudience
+                subject_token_type: !Ref SubjectTokenType
+
+Outputs:
+  OktaGatewayTargetId:
+    Value: !GetAtt OktaGatewayTarget.TargetId
+  OktaGatewayTargetStatus:
+    Value: !GetAtt OktaGatewayTarget.Status
+  OktaOboProviderArn:
+    Description: Provider actually in use, whether created here or supplied.
+    Value: !If
+      - CreateProvider
+      - !GetAtt OboProvider.CredentialProviderArn
+      - !Ref OboProviderArn

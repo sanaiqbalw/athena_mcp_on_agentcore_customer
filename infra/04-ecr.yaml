@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - ECR repository for the MCP server image.
+  Separate from the AgentCore stack because the image has to exist before
+  AWS::BedrockAgentCore::Runtime can reference it.
+
+Parameters:
+  RepositoryName:
+    Type: String
+
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageTagMutability: MUTABLE
+      EmptyOnDelete: true
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "keep the 5 most recent images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 5
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+Outputs:
+  EcrRepositoryName:
+    Value: !Ref Repository
+  EcrRepositoryUri:
+    Value: !GetAtt Repository.RepositoryUri

@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - Lake Formation location registration and per-tier column grants.
+  This template is the ONLY place the analytics/business difference is expressed.
+  Run scripts/lf_bootstrap.py first: the deploying principal must be a data lake admin
+  and any inherited IAM_ALLOWED_PRINCIPALS grant must be gone, or these grants are moot.
+
+Parameters:
+  DataBucketName:
+    Type: String
+  GlueDatabaseName:
+    Type: String
+  AnalyticsRoleArn:
+    Type: String
+  BusinessRoleArn:
+    Type: String
+
+Resources:
+  # Hand the data location to Lake Formation so it, not IAM, vends S3 access.
+  DataLakeLocation:
+    Type: AWS::LakeFormation::Resource
+    Properties:
+      ResourceArn: !Sub "arn:${AWS::Partition}:s3:::${DataBucketName}/data"
+      UseServiceLinkedRole: true
+
+  # --- database level: both tiers may see that the tables exist -----------------
+  AnalyticsDatabaseDescribe:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref AnalyticsRoleArn
+      Resource:
+        Database:
+          CatalogId: !Ref AWS::AccountId
+          Name: !Ref GlueDatabaseName
+      Permissions: [DESCRIBE]
+      PermissionsWithGrantOption: []
+
+  BusinessDatabaseDescribe:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref BusinessRoleArn
+      Resource:
+        Database:
+          CatalogId: !Ref AWS::AccountId
+          Name: !Ref GlueDatabaseName
+      Permissions: [DESCRIBE]
+      PermissionsWithGrantOption: []
+
+  # --- analytics tier: SELECT on the whole table means every column -------------
+  AnalyticsTransactions:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: DataLakeLocation
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref AnalyticsRoleArn
+      Resource:
+        Table:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabaseName
+          Name: transactions
+      Permissions: [SELECT, DESCRIBE]
+      PermissionsWithGrantOption: []
+
+  AnalyticsCustomers:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: DataLakeLocation
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref AnalyticsRoleArn
+      Resource:
+        Table:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabaseName
+          Name: customers
+      Permissions: [SELECT, DESCRIBE]
+      PermissionsWithGrantOption: []
+
+  AnalyticsDeposits:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: DataLakeLocation
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref AnalyticsRoleArn
+      Resource:
+        Table:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabaseName
+          Name: deposits
+      Permissions: [SELECT, DESCRIBE]
+      PermissionsWithGrantOption: []
+
+  # --- business tier: same tables, sensitive columns excluded -------------------
+  # An exclusion wildcard rather than an include list, so a new column added to a
+  # table is not silently handed to the business tier.
+  BusinessTransactions:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: DataLakeLocation
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref BusinessRoleArn
+      Resource:
+        TableWithColumns:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabaseName
+          Name: transactions
+          ColumnWildcard:
+            ExcludedColumnNames: [customer_id]
+      Permissions: [SELECT]
+      PermissionsWithGrantOption: []
+
+  BusinessCustomers:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: DataLakeLocation
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref BusinessRoleArn
+      Resource:
+        TableWithColumns:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabaseName
+          Name: customers
+          ColumnWildcard:
+            ExcludedColumnNames: [customer_id, ssn_last4]
+      Permissions: [SELECT]
+      PermissionsWithGrantOption: []
+
+  BusinessDeposits:
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: DataLakeLocation
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !Ref BusinessRoleArn
+      Resource:
+        TableWithColumns:
+          CatalogId: !Ref AWS::AccountId
+          DatabaseName: !Ref GlueDatabaseName
+          Name: deposits
+          ColumnWildcard:
+            ExcludedColumnNames: [customer_id, rate]
+      Permissions: [SELECT]
+      PermissionsWithGrantOption: []
+
+Outputs:
+  RegisteredLocation:
+    Value: !Sub "arn:${AWS::Partition}:s3:::${DataBucketName}/data"
+  BusinessExcludedColumns:
+    Value: "customer_id,ssn_last4,rate"

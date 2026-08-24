@@ -1,0 +1,158 @@
+<mxfile host="Electron" pages="1">
+  <diagram name="Okta MCP E2E" id="gP9jkaY7aentBUfusZwm">
+    <mxGraphModel dx="3568" dy="1087" grid="1" gridSize="5" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" background="light-dark(#ffffff, #121212)" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0l4mKfX82r8DNLIFwCI4-0" />
+        <mxCell id="0l4mKfX82r8DNLIFwCI4-1" parent="0l4mKfX82r8DNLIFwCI4-0" />
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-169" parent="0l4mKfX82r8DNLIFwCI4-1" style="text;html=1;fontSize=11;fontStyle=1;align=left;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Athena MCP · Okta track" vertex="1">
+          <mxGeometry height="24" width="420" x="420" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-131" parent="0l4mKfX82r8DNLIFwCI4-1" style="swimlane;startSize=26;html=1;fillColor=none;strokeColor=light-dark(#f9faf5, #bdc7d4);fontSize=11;fontStyle=1;align=left;spacingLeft=10;strokeWidth=1;fontFamily=Verdana;labelBackgroundColor=none;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" value="" vertex="1">
+          <mxGeometry height="1040" width="1765" x="105" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-132" parent="zBzA2icYMRFcfZYh4mG8-131" style="swimlane;startSize=26;html=1;fillColor=#F3F7FD;strokeColor=#3C78D8;fontSize=11;fontStyle=1;align=left;spacingLeft=8;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Identity · Okta (external) — authorization server aus12k6… · audience agentcore-gateway-okta-app" vertex="1">
+          <mxGeometry height="164" width="1143.5" x="200" y="25" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-133" parent="zBzA2icYMRFcfZYh4mG8-132" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="SPA app&#xa;public · PKCE" vertex="1">
+          <mxGeometry height="48" width="190" x="40" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-134" parent="zBzA2icYMRFcfZYh4mG8-132" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D6336C;strokeWidth=2;fontSize=11;fontFamily=Verdana;labelBackgroundColor=none;" value="Service app&#xa;Token Exchange" vertex="1">
+          <mxGeometry height="48" width="241" x="294" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-135" parent="zBzA2icYMRFcfZYh4mG8-132" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#555555;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="two apps · the SPA signs the user in, the service app performs the exchange" vertex="1">
+          <mxGeometry height="30" width="330" x="760" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-168" edge="1" parent="zBzA2icYMRFcfZYh4mG8-132" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D6336C;strokeWidth=2;fontSize=11;exitX=0.905;exitY=0.986;fontFamily=Verdana;labelBackgroundColor=none;startArrow=classic;startFill=1;exitDx=0;exitDy=0;exitPerimeter=0;" value="&lt;b&gt;6 · exchanged token&lt;br&gt;sub kept · cid changed&lt;/b&gt;">
+          <mxGeometry relative="1" x="-0.2198" y="6" as="geometry">
+            <mxPoint y="-1" as="offset" />
+            <mxPoint x="461.9500000000003" y="92.32799999999997" as="sourcePoint" />
+            <mxPoint x="483.95000000000005" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-136" parent="zBzA2icYMRFcfZYh4mG8-131" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.user;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="&lt;br&gt;MCP client" vertex="1">
+          <mxGeometry height="52" width="52" x="40" y="394" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-137" edge="1" parent="zBzA2icYMRFcfZYh4mG8-131" source="zBzA2icYMRFcfZYh4mG8-136" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#3C78D8;fontSize=11;dashed=1;exitX=0.5;exitY=0;entryX=0;entryY=0.5;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;fontStyle=1" target="zBzA2icYMRFcfZYh4mG8-133" value="2 · 401 → login">
+          <mxGeometry relative="1" x="-0.0338" y="-44" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-138" edge="1" parent="zBzA2icYMRFcfZYh4mG8-131" source="zBzA2icYMRFcfZYh4mG8-133" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#3C78D8;strokeWidth=2;fontSize=11;exitX=0;exitY=1;entryX=0.25;entryY=0;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-136" value="&lt;b&gt;3 · token · groups&lt;/b&gt;">
+          <mxGeometry relative="1" x="0.0959" y="19" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-139" parent="zBzA2icYMRFcfZYh4mG8-131" style="swimlane;startSize=26;html=1;fillColor=none;strokeColor=#232F3E;dashed=1;fontSize=11;fontStyle=1;align=left;spacingLeft=10;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="AWS Cloud — us-west-2" vertex="1">
+          <mxGeometry height="663" width="1163.5" x="210" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-140" parent="zBzA2icYMRFcfZYh4mG8-139" style="swimlane;startSize=24;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=11;fontStyle=1;align=left;spacingLeft=8;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Serving · 09-okta-runtime · 10-okta-gateway · 11-okta-gateway-target" vertex="1">
+          <mxGeometry height="240" width="1127" x="10" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-141" parent="zBzA2icYMRFcfZYh4mG8-140" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontFamily=Verdana;labelBackgroundColor=none;" value="AgentCore Gateway&#xa;CUSTOM_JWT" vertex="1">
+          <mxGeometry height="48" width="150" x="20" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-142" parent="zBzA2icYMRFcfZYh4mG8-140" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6E6E6;strokeColor=#999999;dashed=1;fontSize=11;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="GatewayRateLimit · 20/min" vertex="1">
+          <mxGeometry height="28" width="150" x="20" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-143" parent="zBzA2icYMRFcfZYh4mG8-140" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6E6E6;strokeColor=#D79B00;fontSize=11;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Interceptor · write guard" vertex="1">
+          <mxGeometry height="28" width="150" x="20" y="144" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-210" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-144" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="70" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-144" parent="zBzA2icYMRFcfZYh4mG8-140" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D6336C;strokeWidth=2;fontSize=11;fontFamily=Verdana;labelBackgroundColor=none;" value="AgentCore Identity&#xa;token vault" vertex="1">
+          <mxGeometry height="48" width="150" x="365" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-145" parent="zBzA2icYMRFcfZYh4mG8-140" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontFamily=Verdana;labelBackgroundColor=none;" value="AgentCore Runtime&#xa;protocol MCP" vertex="1">
+          <mxGeometry height="48" width="150" x="670" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-146" parent="zBzA2icYMRFcfZYh4mG8-140" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF9E6;strokeColor=#D6B656;fontSize=11;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="groups → tier" vertex="1">
+          <mxGeometry height="28" width="150" x="670" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-147" parent="zBzA2icYMRFcfZYh4mG8-140" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.role;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="AnalyticsRole" vertex="1">
+          <mxGeometry height="34" width="60" x="930" y="33" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-148" parent="zBzA2icYMRFcfZYh4mG8-140" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.role;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="BusinessRole" vertex="1">
+          <mxGeometry height="34" width="60" x="930" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-149" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-141" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;dashed=1;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;fontFamily=Verdana;fontSize=11;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-142">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-150" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-141" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D6336C;strokeWidth=2;fontSize=11;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.25;fillColor=none;fontFamily=Verdana;labelBackgroundColor=none;entryDx=0;entryDy=0;" target="zBzA2icYMRFcfZYh4mG8-144" value="4 · exchange on behalf of user">
+          <mxGeometry relative="1" x="0.179" y="-23" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="350.07" y="69.07" />
+              <mxPoint x="350.07" y="77.07" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-151" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-142" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;dashed=1;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;fontFamily=Verdana;fontSize=11;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-143">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-152" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-144" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D6336C;strokeWidth=2;fontSize=11;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-145" value="7 · forwards token">
+          <mxGeometry relative="1" x="-0.458" y="37" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-153" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-145" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#2E7D32;endArrow=none;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;fontFamily=Verdana;fontSize=11;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-146">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-154" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-146" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#DD344C;strokeWidth=2;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-147" value="8 · AssumeRole the tier">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-155" edge="1" parent="zBzA2icYMRFcfZYh4mG8-140" source="zBzA2icYMRFcfZYh4mG8-146" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#DD344C;strokeWidth=2;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-148" value="or">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-156" parent="zBzA2icYMRFcfZYh4mG8-139" style="swimlane;startSize=24;html=1;fillColor=#EDE7F6;strokeColor=#8C4FFF;fontSize=11;fontStyle=1;align=left;spacingLeft=8;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Data lake · 01-datalake · 03-lakeformation" vertex="1">
+          <mxGeometry height="313" width="1130" x="20" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-157" parent="zBzA2icYMRFcfZYh4mG8-156" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.lake_formation;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Lake Formation&#xa;column-level SELECT" vertex="1">
+          <mxGeometry height="56" width="56" x="430" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-158" parent="zBzA2icYMRFcfZYh4mG8-156" style="text;html=1;align=center;fontSize=11;fontStyle=2;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="withholds customer_id · ssn_last4 · rate&#xa;from the business tier" vertex="1">
+          <mxGeometry height="30" width="230" x="345" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-159" parent="zBzA2icYMRFcfZYh4mG8-156" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.athena;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Athena&#xa;intrafi_demo_workgroup" vertex="1">
+          <mxGeometry height="56" width="56" x="630" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-160" parent="zBzA2icYMRFcfZYh4mG8-156" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.glue_data_catalog;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="Glue Data Catalog&#xa;intrafi_demo" vertex="1">
+          <mxGeometry height="56" width="56" x="790" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-161" parent="zBzA2icYMRFcfZYh4mG8-156" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.bucket_with_objects;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="S3 · Parquet" vertex="1">
+          <mxGeometry height="56" width="54" x="930" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-162" edge="1" parent="zBzA2icYMRFcfZYh4mG8-156" source="zBzA2icYMRFcfZYh4mG8-157" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8C4FFF;strokeWidth=2;dashed=1;fontSize=11;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-159" value="authorizes columns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-163" edge="1" parent="zBzA2icYMRFcfZYh4mG8-156" source="zBzA2icYMRFcfZYh4mG8-159" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8C4FFF;strokeWidth=2;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-160" value="10 · table metadata">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-164" edge="1" parent="zBzA2icYMRFcfZYh4mG8-156" source="zBzA2icYMRFcfZYh4mG8-160" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8C4FFF;strokeWidth=2;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-161" value="11 · rows">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-130" parent="zBzA2icYMRFcfZYh4mG8-156" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fillColor=#fffaf0;strokeColor=#FF9900;rounded=1;spacing=8;spacingTop=4;strokeWidth=2;fontFamily=Verdana;labelBackgroundColor=none;" value="&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;1 — Kiro calls the gateway&#39;s MCP URL&amp;nbsp;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;2 — With no token, the gateway answers 401 + WWW-Authenticate, which sends the client to Okta&#39;s login page.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;3 — The user signs in with PKCE; Okta&#39;s SPA app returns an access token carrying their groups claim.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;4 — The gateway asks AgentCore Identity to get a downstream token on behalf of that user.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;5 — AgentCore Identity performs the RFC 8693 token exchange against Okta, authenticating as the service app.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;6 — Okta returns the exchanged token: same sub (the user), new cid (the service app) — that pair is what makes it delegation.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;7 — The gateway forwards the exchanged token to the runtime, which validates it with its own Okta JWT authorizer.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;8 — identity.py reads the groups claim, maps it to a tier, and calls sts:AssumeRole for that tier&#39;s IAM role.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;9 — The server queries Athena using those temporary credentials, so the query runs as the caller&#39;s role.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;10 — Athena resolves table metadata from the Glue Data Catalog.&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 8px;&quot;&gt;11 — Glue vends credentials for the underlying Parquet in S3 and the rows come back.&lt;/font&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255)); font-size: 8px;&quot;&gt;.&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="228" width="660" x="-440" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-165" edge="1" parent="zBzA2icYMRFcfZYh4mG8-139" source="zBzA2icYMRFcfZYh4mG8-148" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-159" value="9 · query as that role">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-166" edge="1" parent="zBzA2icYMRFcfZYh4mG8-131" source="zBzA2icYMRFcfZYh4mG8-136" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-141" value="&lt;b&gt;1 · MCP + Bearer&lt;/b&gt;">
+          <mxGeometry relative="1" x="-0.3341" y="15" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="255" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zBzA2icYMRFcfZYh4mG8-167" edge="1" parent="zBzA2icYMRFcfZYh4mG8-131" source="zBzA2icYMRFcfZYh4mG8-144" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D6336C;strokeWidth=2;fontSize=11;fontStyle=1;exitX=0.25;exitY=0;entryX=0.25;entryY=1;fontFamily=Verdana;labelBackgroundColor=none;" target="zBzA2icYMRFcfZYh4mG8-134" value="5 · RFC 8693">
+          <mxGeometry relative="1" x="0.4673" y="2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

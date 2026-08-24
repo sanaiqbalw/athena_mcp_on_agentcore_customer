@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - the AgentCore Runtime hosting the MCP server. It validates the
+  Okta-issued JWT itself, which is what lets the Gateway forward the *exchanged*
+  on-behalf-of token instead of substituting its own identity.
+
+  Note that a runtime carrying a JWT authorizer rejects SigV4, so it serves exactly one
+  inbound topology.
+
+Parameters:
+  RuntimeName:
+    Type: String
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9_]{0,47}"
+    Description: Runtime names allow letters, digits and underscores only -- no hyphens.
+  ContainerUri:
+    Type: String
+    Description: One image serves every deployment; identity is resolved per request.
+  RuntimeExecRoleArn:
+    Type: String
+  OktaDiscoveryUrl:
+    Type: String
+    Description: Okta custom authorization server discovery document
+    AllowedPattern: "^.+/\\.well-known/openid-configuration$"
+  OktaAudience:
+    Type: String
+    Description: >
+      Audience carried by the exchanged token. Matched instead of a client id on purpose:
+      Okta puts the client identity in the "cid" claim, not "client_id", so the
+      AllowedClients mechanism does not apply to Okta-issued tokens.
+  OktaIssuer:
+    Type: String
+    Description: Issuer the server checks before trusting a groups claim.
+  OktaGroupsClaim:
+    Type: String
+    Default: groups
+    Description: Claim naming the caller's Okta groups; selects the tier role.
+  # --- server configuration, passed through to the container ------------------
+  GlueDatabaseName:
+    Type: String
+  AthenaWorkgroupName:
+    Type: String
+  AnalyticsRoleArn:
+    Type: String
+  BusinessRoleArn:
+    Type: String
+  ResourcePrefix:
+    Type: String
+    Description: Passed to the server so its log lines and STS session names carry it.
+  AnalyticsModelIds:
+    Type: String
+    Default: "anthropic.claude-sonnet-4-20250514-v1:0,anthropic.claude-3-5-haiku-20241022-v1:0"
+  BusinessModelIds:
+    Type: String
+    Default: "anthropic.claude-3-5-haiku-20241022-v1:0"
+
+Resources:
+  OktaRuntime:
+    Type: AWS::BedrockAgentCore::Runtime
+    Properties:
+      AgentRuntimeName: !Ref RuntimeName
+      Description: Athena MCP server, Okta inbound - receives the OBO-exchanged token
+      RoleArn: !Ref RuntimeExecRoleArn
+      ProtocolConfiguration: MCP
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      AgentRuntimeArtifact:
+        ContainerConfiguration:
+          ContainerUri: !Ref ContainerUri
+      # This runtime is its own resource server: it validates the bearer token the
+      # gateway forwards. That token is the product of the RFC 8693 exchange, so it
+      # names the end user in "sub" while naming the exchanging service in "cid".
+      AuthorizerConfiguration:
+        CustomJWTAuthorizer:
+          DiscoveryUrl: !Ref OktaDiscoveryUrl
+          AllowedAudience:
+            - !Ref OktaAudience
+      # Permitted only because a JWT authorizer is present. In SigV4 mode this header
+      # carries the gateway's signature rather than a user token and is rejected.
+      RequestHeaderConfiguration:
+        RequestHeaderAllowlist:
+          - Authorization
+      EnvironmentVariables:
+        GLUE_DATABASE: !Ref GlueDatabaseName
+        ATHENA_WORKGROUP: !Ref AthenaWorkgroupName
+        ANALYTICS_ROLE_ARN: !Ref AnalyticsRoleArn
+        BUSINESS_ROLE_ARN: !Ref BusinessRoleArn
+        # The server honours a groups claim only when the issuer matches, so a token
+        # from any other issuer cannot select the analytics role.
+        OKTA_ISSUER: !Ref OktaIssuer
+        OKTA_AUDIENCE: !Ref OktaAudience
+        OKTA_GROUPS_CLAIM: !Ref OktaGroupsClaim
+        ANALYTICS_MODEL_IDS: !Ref AnalyticsModelIds
+        BUSINESS_MODEL_IDS: !Ref BusinessModelIds
+        RESOURCE_PREFIX: !Ref ResourcePrefix
+        SERVER_REGION: !Ref AWS::Region
+        LOG_LEVEL: INFO
+
+Outputs:
+  OktaRuntimeArn:
+    Value: !GetAtt OktaRuntime.AgentRuntimeArn
+  OktaRuntimeId:
+    Value: !GetAtt OktaRuntime.AgentRuntimeId
+  OktaRuntimeStatus:
+    Value: !GetAtt OktaRuntime.Status

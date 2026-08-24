@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Athena MCP demo - S3 data lake, Glue catalog and Athena workgroup
+
+Parameters:
+  DataBucketName:
+    Type: String
+  GlueDatabaseName:
+    Type: String
+  AthenaWorkgroupName:
+    Type: String
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref DataBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-athena-results
+            Status: Enabled
+            Prefix: athena-results/
+            ExpirationInDays: 7
+
+  # Empty CreateTableDefaultPermissions is deliberate: it stops the account-level
+  # IAM_ALLOWED_PRINCIPALS: ALL default from being inherited, which would bypass
+  # Lake Formation column filtering entirely and make the demo prove nothing.
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Ref GlueDatabaseName
+        Description: Athena MCP demo data
+        LocationUri: !Sub "s3://${DataBucketName}/data/"
+        CreateTableDefaultPermissions: []
+
+  TransactionsTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: transactions
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          EXTERNAL: "TRUE"
+          classification: parquet
+        PartitionKeys:
+          - { Name: year, Type: string }
+          - { Name: month, Type: string }
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucketName}/data/transactions/"
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: transaction_id, Type: string }
+            - { Name: date, Type: date }
+            - { Name: amount, Type: double }
+            - { Name: bank_name, Type: string }
+            - { Name: customer_id, Type: string }
+            - { Name: status, Type: string }
+            - { Name: region, Type: string }
+
+  CustomersTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: customers
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          EXTERNAL: "TRUE"
+          classification: parquet
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucketName}/data/customers/"
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: customer_id, Type: string }
+            - { Name: name, Type: string }
+            - { Name: segment, Type: string }
+            - { Name: region, Type: string }
+            - { Name: tier, Type: string }
+            - { Name: ssn_last4, Type: string }
+
+  DepositsTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: deposits
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          EXTERNAL: "TRUE"
+          classification: parquet
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucketName}/data/deposits/"
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: deposit_id, Type: string }
+            - { Name: bank_name, Type: string }
+            - { Name: amount, Type: double }
+            - { Name: maturity_date, Type: date }
+            - { Name: rate, Type: double }
+            - { Name: customer_id, Type: string }
+            - { Name: product_type, Type: string }
+
+  AthenaWorkgroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Ref AthenaWorkgroupName
+      Description: Athena MCP demo queries
+      State: ENABLED
+      RecursiveDeleteOption: true
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        BytesScannedCutoffPerQuery: 1073741824
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${DataBucketName}/athena-results/"
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3
+
+Outputs:
+  DataBucket:
+    Value: !Ref DataBucket
+  DataLocation:
+    Value: !Sub "s3://${DataBucketName}/data/"
+  AthenaResultsLocation:
+    Value: !Sub "s3://${DataBucketName}/athena-results/"
+  GlueDatabase:
+    Value: !Ref GlueDatabase
+  AthenaWorkgroup:
+    Value: !Ref AthenaWorkgroup

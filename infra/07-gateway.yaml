@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Athena MCP demo - the MCP gateway, with Okta as the inbound authorizer.
+
+  This is what makes the caller's own identity reach the MCP server as a token: the gateway
+  swaps the caller's token for a downstream-scoped one via AgentCore Identity, using RFC 8693
+  token exchange. No exchange code is written anywhere in this demo - only the
+  credential-provider configuration on the target.
+
+Parameters:
+  GatewayName:
+    Type: String
+    AllowedPattern: "([0-9a-zA-Z][-]?){1,100}"
+  RateLimitId:
+    Type: String
+    AllowedPattern: "([0-9a-zA-Z][-]?){1,100}"
+    Description: Physical name for the per-user rate limit resource.
+  GatewayRoleArn:
+    Type: String
+  OktaDiscoveryUrl:
+    Type: String
+    AllowedPattern: "^.+/\\.well-known/openid-configuration$"
+  OktaAudience:
+    Type: String
+    Description: >
+      Audience of the inbound user token. Matched rather than a client id because Okta
+      places the client identity in "cid", not "client_id", so AllowedClients does not
+      apply to Okta-issued tokens.
+  RequestsPerMinute:
+    Type: Number
+    Default: 20
+    Description: Native per-user request budget.
+  InterceptorFunctionArn:
+    Type: String
+    Default: ""
+    Description: >
+      Request interceptor from stack 06, here purely as the write/delete guard. Empty
+      disables it.
+
+Conditions:
+  HasInterceptor: !Not [!Equals [!Ref InterceptorFunctionArn, ""]]
+
+Resources:
+  OktaGateway:
+    Type: AWS::BedrockAgentCore::Gateway
+    Properties:
+      Name: !Ref GatewayName
+      Description: Athena MCP gateway, Okta inbound with on-behalf-of outbound
+      RoleArn: !Ref GatewayRoleArn
+      ProtocolType: MCP
+      ProtocolConfiguration:
+        Mcp:
+          SupportedVersions:
+            - "2025-03-26"
+          Instructions: >
+            Athena data lake over Amazon Athena. Which columns you can see depends on the
+            identity you signed in with; your group selects an IAM role and Lake Formation
+            filters results for that role.
+      # An unauthenticated call returns 401 with WWW-Authenticate, which is how an MCP
+      # client discovers the Okta login without any auth config of its own.
+      AuthorizerType: CUSTOM_JWT
+      AuthorizerConfiguration:
+        CustomJWTAuthorizer:
+          DiscoveryUrl: !Ref OktaDiscoveryUrl
+          AllowedAudience:
+            - !Ref OktaAudience
+      ExceptionLevel: DEBUG
+      # The interceptor is attached as the write guard: it blocks any mutating tool call.
+      # PassRequestHeaders is false, so the caller's bearer token is never handed to the
+      # Lambda -- the guard reads only the JSON-RPC body.
+      InterceptorConfigurations: !If
+        - HasInterceptor
+        - - Interceptor:
+              Lambda:
+                Arn: !Ref InterceptorFunctionArn
+            InterceptionPoints:
+              - REQUEST
+            InputConfiguration:
+              PassRequestHeaders: false
+        - !Ref AWS::NoValue
+
+  # Bucket by the validated JWT subject so one caller cannot starve another. Rate limits
+  # fail open, so this is not a security boundary - it is a throttle.
+  OktaGatewayRateLimit:
+    Type: AWS::BedrockAgentCore::GatewayRateLimit
+    Properties:
+      GatewayIdentifier: !GetAtt OktaGateway.GatewayIdentifier
+      RateLimitId: !Ref RateLimitId
+      Description: Per-user request budget
+      DimensionKeys:
+        - "$.context.jwt.sub"
+      Entries:
+        - Dimensions:
+            "$.context.jwt.sub": "*"
+          Requests:
+            - Period: minute
+              Rate: !Ref RequestsPerMinute
+
+Outputs:
+  OktaGatewayId:
+    Value: !GetAtt OktaGateway.GatewayIdentifier
+  OktaGatewayArn:
+    Value: !GetAtt OktaGateway.GatewayArn
+  OktaGatewayMcpUrl:
+    Value: !GetAtt OktaGateway.GatewayUrl
+  OktaGatewayRateLimitId:
+    Value: !Ref OktaGatewayRateLimit

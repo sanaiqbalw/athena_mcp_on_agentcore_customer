@@ -1,0 +1,25 @@
+# Generated artifacts
+build/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Kiro workspace state (specs, steering, local settings)
+.kiro/
+
+# Local config and secrets
+.env
+*.pem
+demo-credentials.txt
+
+# draw.io lock and backup files, e.g. docs/.$architecture.drawio.bkp
+.$*
+*.bkp
+*.dtmp
+
+# macOS
+.DS_Store
